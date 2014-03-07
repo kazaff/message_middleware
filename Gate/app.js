@@ -3,43 +3,51 @@
  */
 "use strict";
 
-//todo 加载config
+//加载config
+var Config = require("./config");
+var Restify = require("restify");
+var Auth = require("../lib/Auth");
+var Balancing = require("../lib/Balancing");
 
-//todo 负载算法
-
-var restify = require('restify');
 //设置跨域的自定义请求头
-restify.CORS.ALLOW_HEADERS.push("auth");
+Restify.CORS.ALLOW_HEADERS.push("auth");
 
-var server = restify.createServer({name: 'Gate Server'});
+var server = Restify.createServer({name: "Gate Server"});
 //开启跨域支持
-server.use(restify.CORS());
-server.use(restify.fullResponse());
+server.use(Restify.CORS());
+server.use(Restify.fullResponse());
 
-server.use(restify.acceptParser(server.acceptable));
-server.use(restify.dateParser(30));
+server.use(Restify.acceptParser(server.acceptable));
+server.use(Restify.dateParser(30));
 
+//验证用户身份
 server.use(function auth(req, res, next){
-    //验证用户身份
-    //console.log(req.header("auth"));
+
     var token = req.header("auth");
     if(!token){
-        return next(new restify.UnauthorizedError("authentication required"));
+        return next(new Restify.UnauthorizedError("authentication required"));
     }
 
     //获取用户信息
+    Auth.verify(req, Config.appId, Config.api, token, Config.token, next);
 
+    return;
+});
 
+server.get("/entity", function getEntity(req, res, next){
+
+    //返回指定node服务地址
+    var target;
+    try{
+        target = Balancing.poll(Config.servers);
+    }catch(err){
+        return next(err);
+    }
+
+    res.send(target);
     return next();
 });
 
-server.get('/entity', function getEntity(req, res, next){
-
-    //todo 返回指定node服务地址
-
-    return next();
-});
-
-server.listen(81, 'localhost', function(){
+server.listen(Config.port, Config.host, function(){
     console.log("%s listening at %s", server.name, server.url);
 });
