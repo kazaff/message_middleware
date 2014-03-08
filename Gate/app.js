@@ -11,13 +11,13 @@ if(Cluster.isMaster){
         Cluster.fork();
     }
 
-    Cluster.on("exit", function(worker, code, signal){
+    Cluster.on("disconnect", function(worker, code, signal){
         console.log("worker %d died (%s). restarting...", worker.process.pid, signal || code);
         Cluster.fork();
     });
 
-}else{
-    //worker
+}else{      //Worker
+
     //加载config
     var Config = require("./config");
     var Restify = require("restify");
@@ -81,6 +81,9 @@ if(Cluster.isMaster){
             }
         });
 
+        reqDomain.add(req);
+        reqDomain.add(res);
+
         reqDomain.run(next);
     });
 
@@ -116,7 +119,7 @@ if(Cluster.isMaster){
         }
 
         console.log("Worker " + Cluster.worker.id + " handle!");
-        throw new Error("test");
+        //throw new Error("test");
 
         res.send(target);
         return next();
