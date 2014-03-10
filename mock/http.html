@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html ng-app="APP">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="stylesheet" href="css/bootstrap.css">
+  		<style>
+  			body {
+          padding-top: 40px;
+          padding-bottom: 40px;
+          background-color: #f5f5f5;
+        }
+  		</style>
+  	</head>
+
+  	<body ng-controller="testCtrl">
+      <div class="container">
+        <form class="form-horizontal">
+          <div class="control-group">
+            <label class="control-label" for="url">地址</label>
+            <div class="controls">
+              <input type="text" id="url" ng-model="form.url" placeholder="请求地址">
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label" for="auth">认证码</label>
+            <div class="controls">
+              <input type="text" id="auth" ng-model="form.token" placeholder="认证码">
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label" for="type">请求类型</label>
+            <div class="controls">
+              <select ng-model="form.type" id="type">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </div>
+          </div>
+          <div class="control-group">
+            <label class="control-label" for="data">数据</label>
+            <div class="controls">
+              <textarea id="data" ng-model="form.data" placeholder="json结构的数据"></textarea>
+            </div>
+          </div>
+          <div class="control-group">
+			<div class="controls">
+				<button class="btn btn-success" ng-click="send()" ng-disabled="loading">发送</button>
+			</div>
+          </div>
+        </form>
+        <div class="alerts">
+        	<div class="alert fade" ng-repeat="alert in alerts" bs-alert="alert"></div>
+        </div>
+      </div>
+  		
+  	</body>
+
+	<script src="js/jquery.js"></script>
+  	<script src="js/angular.js"></script>
+  	<script src="js/bootstrap.js"></script>
+  	<script src="js/angular-strap.js"></script>
+  	<script>
+  		var APP = angular.module('APP', ['$strap.directives']);
+
+  		APP.controller('testCtrl', function($scope, $http){
+  			$scope.form = {
+  				url: "http://localhost:81/entity"
+  				, type: "GET"
+  				, data: "{}"
+  			};
+
+  			$scope.loading = false;
+	        $scope.alerts = [];
+
+	        $scope.send = function(){
+
+	        	$scope.loading = true;
+				var data ;
+				try{
+					data = JSON.parse($scope.form.data);
+				}catch(e){
+					$scope.alerts.push({content:'json结构不标准, 键值应使用双引号！', type: "error"});
+				}
+
+				$http({
+					method: $scope.form.type
+					, url: $scope.form.url
+					, data: data
+					, headers: {
+						"AUTH": $scope.form.token
+					}
+					, timeout: 10000
+				})
+				.success(function(data, status){
+					$scope.loading = false;
+					console.log(data);
+				})
+				.error(function(data, status){
+					$scope.loading = false;
+					console.log(status);
+					console.log(data);
+				});
+	        };
+  		});
+  	</script>
+</html>

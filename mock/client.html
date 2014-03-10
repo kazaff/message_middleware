@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html ng-app="APP">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="stylesheet" href="css/bootstrap.css">
+  		<style>
+  			body {
+          padding-top: 40px;
+          padding-bottom: 40px;
+          background-color: #f5f5f5;
+        }
+        form {
+          margin-top: 100px;
+        }
+  		</style>
+  	</head>
+
+  	<body ng-controller="testCtrl">
+      <div class="container">
+        <div class="span10">
+          <table class="table table-striped" style="">
+            <thead>
+              <tr>
+                <th class="span2">Name</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr ng-repeat="row in messages">
+                <td class="span2"><span class="label label-warning"><i class="icon-user"></i> {{row.name}}</span></td>
+                <td><div class="label label-info" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:500px;"><i class="icon-envelope"></i> {{row.message}}</div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <form class="form-horizontal container">
+          <div class="control-group">
+            <label class="control-label" for="name">ID</label>
+            <div class="controls">
+              <input id="name" type="text" ng-model="form.name" placeholder="昵称" />
+            </div>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="data">消息</label>
+            <div class="controls">
+              <textarea id="data" ng-model="form.message" placeholder="消息"></textarea>
+            </div>
+          </div>
+
+          <div class="control-group">
+      			<div class="controls">
+      				<button class="btn btn-success" ng-click="send()" ng-disabled="loading">发送</button>
+      			</div>
+          </div>
+        </form>
+      </div>
+  	</body>
+    
+    <script src="js/jquery.js"></script>
+  	<script src="js/angular.js"></script>
+  	<script src="js/bootstrap.js"></script>
+  	<script src="js/angular-strap.js"></script>
+    <script src="js/socket.io-client/dist/socket.io.js"></script>
+  	<script>
+      var socket = io.connect("http://localhost:8080?auth=123");    //注意这里把token以url参数的形式绑定在socket上，用于服务器端进行认证
+      socket.on("error", function(err){
+        console.log(err);
+        console.log("test");
+      });
+      window.socket = socket;
+
+  		var APP = angular.module('APP', ['$strap.directives']);
+
+  		APP.controller('testCtrl', function($scope, $http){
+  			$scope.form = {
+            name: "kazaff"
+            , message: ""
+  			};
+
+        $scope.messages = [];
+
+  			$scope.loading = false;
+
+        socket.on("message", function(data){
+          console.log(data);
+          $scope.messages.push(data);
+          $scope.$root.$$phase || $scope.$apply();
+        });
+
+        $scope.send = function(){
+          var data = {name: $scope.form.name, message: $scope.form.message};
+          socket.emit("message",data);
+          $scope.messages.push(data);
+        };
+  		});
+  	</script>
+</html>
