@@ -10,7 +10,8 @@
     },
     "dependencies": {
         "restify": "~2.6.1"
-        ,"underscore": "~1.6.0"
+        , "underscore": "~1.6.0"
+        , "socket.io": "~0.9.16"
     },
     "engines": {
         "node": ">=0.10.25"
