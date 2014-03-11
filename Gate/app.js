@@ -21,8 +21,8 @@ if(Cluster.isMaster){
     //加载config
     var Config = require("./config");
     var Restify = require("restify");
-    var Auth = require("./Auth");
-    var Balancing = require("./Balancing");
+    var Auth = require("./auth");
+    var Balancing = require("./balancing");
     var Domain = require("domain");
 
     //设置跨域的自定义请求头

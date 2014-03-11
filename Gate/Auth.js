@@ -3,8 +3,7 @@
  */
 "use strict";
 
-var Restify = require("restify");
-var Crypto = require("crypto");
+var Auth = require("../lib/Auth");
 
 module.exports = {
     verify: function(request, appid, api, auth, token, cb){
@@ -20,30 +19,13 @@ module.exports = {
             ip = request.connection.remoteAddress;
         }
 
-        //生成签名
-        var params = "appId=" + appid + "&auth=" + auth + "&ip=" + ip + "&time=" + (new Date()).getTime();
-        var sign = Crypto.createHash("md5").update(params + token).digest("hex");
-
-        //校验
-
-        var client = Restify.createJsonClient({url: api});
-        client.get({
-            headers: {
-                "PARAMS": params + "&sid=" + sign
-            }
-        }, function(err, req, res, obj){
+        Auth.verify(api, ip, appid, auth, token, function(err, user){
             if(err){
                 return cb(err);
             }
 
-            if(!obj.status || obj.status == 0){
-                return cb(new Restify.UnauthorizedError("authentication required"));
-            }
-
-            //把获取到的用户信息存入请求对象
-            delete obj.status;
-            request.user = obj;
-            return cb();
+            request.user = user;
+            cb();
         });
 
         return;

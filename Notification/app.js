@@ -3,6 +3,7 @@
  */
 "use strict";
 
+var Config = require("./config");
 var app = require("http").createServer()
     , io = require("socket.io").listen(app);
 
@@ -10,10 +11,8 @@ io.set("log level", 1);     //关闭debug信息
 
 //socket认证
 io.set("authorization", function(data, accept){
-    //console.log(data.query.auth);
-    //todo
-    return accept(null, true);
-    //return accept("", false);
+    var Auth = require("./auth");
+    Auth.verify(data, Config.appId, Config.api, Config.token, accept);
 });
 
 app.listen(8080);
