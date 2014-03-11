@@ -62,7 +62,7 @@
   	<script src="js/angular.js"></script>
   	<script src="js/bootstrap.js"></script>
   	<script src="js/angular-strap.js"></script>
-    <script src="js/socket.io.js"></script>
+    <script src="js/socket.io/socket.io.js"></script>
   	<script>
 		var socket = io.connect("http://localhost:8080?auth=123");    //注意这里把token以url参数的形式绑定在socket上，用于服务器端进行认证
 		socket.on("error", function(err){
