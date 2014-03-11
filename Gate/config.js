@@ -6,7 +6,7 @@
 module.exports = {
     appId: 777
     , token: "777"
-    , api: "http://root/httpMock/auth.php"
+    , api: "http://localhost/message_middleware/mock/auth.json"
     , host: "localhost"
     , port: 81
     , servers: [
@@ -21,4 +21,4 @@ module.exports = {
             , status: true
         }
     ]
-}
+};

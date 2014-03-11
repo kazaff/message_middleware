@@ -18,9 +18,17 @@ io.set("authorization", function(data, accept){
 
 app.listen(8080);
 
+//连接产生
 io.sockets.on("connection", function(socket){
+
+    //todo 消息事件体系
     socket.emit("message", {name:"System", message: "欢迎使用！"});
     socket.on("message", function(data){
         socket.broadcast.emit("message", data);
+    });
+
+    //todo 连接注销
+    socket.on("disconnect", function(){
+
     });
 });
