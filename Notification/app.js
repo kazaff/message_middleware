@@ -26,7 +26,9 @@ io.sockets.on("connection", function(socket){
         socket.broadcast.emit("message", data);
     });
 
-    //todo 连接注销
+    //todo 连接注销 或 心跳失败后做处理
+
+
     socket.on("disconnect", function(){
 
     });

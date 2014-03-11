@@ -64,10 +64,18 @@
   	<script src="js/angular-strap.js"></script>
     <script src="js/socket.io/socket.io.js"></script>
   	<script>
-		var socket = io.connect("http://localhost:8080?auth=123");    //注意这里把token以url参数的形式绑定在socket上，用于服务器端进行认证
+  		var options = {
+  			"reconnect": false
+  		};
+		var socket = io.connect("http://localhost:8080/?auth=123", options);    //注意这里把token以url参数的形式绑定在socket上，用于服务器端进行认证
+		//todo 要实现所有的错误事件监听，保证消息发送失败后的提示
 		socket.on("error", function(err){
 			console.log(err.toString());
 		});
+		socket.on("disconnect", function(){
+			
+		});
+
 		window.socket = socket;
 
 		var APP = angular.module('APP', ['$strap.directives']);
