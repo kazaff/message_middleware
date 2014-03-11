@@ -66,8 +66,7 @@
   	<script>
 		var socket = io.connect("http://localhost:8080?auth=123");    //注意这里把token以url参数的形式绑定在socket上，用于服务器端进行认证
 		socket.on("error", function(err){
-			console.log(err);
-			console.log("test");
+			console.log(err.toString());
 		});
 		window.socket = socket;
 

@@ -12,13 +12,11 @@ module.exports = {
 
         Auth.verify(api, ip, appid, socket.query.auth, token, function(err, user){
             if(err){
-                return cb(err.toString(), false);
+                return cb(err, false);
             }
 
             socket.user = user;
             cb(null, true);
         });
-
-        return;
     }
 };
