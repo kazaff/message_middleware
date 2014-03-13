@@ -11,13 +11,9 @@ module.exports = {
     , port: 81
     , servers: [
         {
-            host: "localhost"
+            protocol: "http"
+            ,host: "localhost"
             , port: 8080
-            , status: true
-        }
-        ,{
-            host: "localhost"
-            , port: 8081
             , status: true
         }
     ]

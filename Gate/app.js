@@ -37,7 +37,7 @@ if(Cluster.isMaster){
 
     //处理 uncaughtException
     process.on("uncaughtException", function(err){
-        console.log("err", err);
+        console.log("uncaughtException", err);
 
         try{
             var killTimer = setTimeout(function(){
@@ -52,7 +52,7 @@ if(Cluster.isMaster){
             }
 
         }catch(err){
-            console.log("err", err.stack);
+            console.log("uncaughtException", err.stack);
         }
     });
 
@@ -60,7 +60,7 @@ if(Cluster.isMaster){
     server.use(function(req, res, next){
         var reqDomain = Domain.create();
         reqDomain.on("error", function(err){
-            console.log("err", err);
+            console.log("Domain err", err);
 
             try{
                 res.send(500);
@@ -77,7 +77,7 @@ if(Cluster.isMaster){
                 }
 
             }catch(err){
-                console.log("err", err.stack);
+                console.log("Domain err", err.stack);
             }
         });
 
@@ -92,7 +92,59 @@ if(Cluster.isMaster){
     server.use(Restify.fullResponse());
 
     server.use(Restify.acceptParser(server.acceptable));
+    server.use(Restify.bodyParser({mapParams: false}));
     server.use(Restify.dateParser(30));
+
+    //映射系统消息发送接口
+    server.post("/message", function(req, res, next){
+
+        //获取消息服务器真实地址
+        var api = Balancing.poll(Config.servers);
+        api = (api.protocol ? api.protocol : "http") + "://" + api.host + ":" + api.port;
+        //console.log(api);
+
+        //转发
+        var Restify = require("restify");
+        var client = Restify.createJsonClient({
+            url: api
+            , headers: {
+                "AUTH": req.header("auth")
+            }
+        });
+        client.post("/message", req.body, function(err, request, response, obj){
+            if(err){
+                return next(err);
+            }
+
+            res.send(obj);
+            next();
+        });
+    });
+
+    //映射系统公告发送接口
+    server.post("/boradcast", function(req, res, next){
+
+        //获取消息服务器真实地址
+        var api = Balancing.poll(Config.servers);
+        api = (api.protocol ? api.protocol : "http") + "://" + api.host + ":" + api.port;
+
+        //转发
+        var Restify = require("restify");
+        var client = Restify.createJsonClient({
+            url: api
+            , headers: {
+                "AUTH": req.header("auth")
+            }
+        });
+        client.post("/boradcast", req.body, function(err, request, response, obj){
+            if(err){
+                return next(err);
+            }
+
+            res.send(obj);
+            next();
+        });
+    });
 
     //验证用户身份
     server.use(function auth(req, res, next){

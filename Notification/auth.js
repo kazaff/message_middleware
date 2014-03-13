@@ -19,4 +19,7 @@ module.exports = {
             cb(null, true);
         });
     }
+    , machine: function(api, appid, auth, token, cb){
+        Auth.verify(api, 0, appid, auth, token, cb);
+    }
 };
