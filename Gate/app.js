@@ -56,7 +56,6 @@ if(Cluster.isMaster){
         }
     });
 
-
     server.use(function(req, res, next){
         var reqDomain = Domain.create();
         reqDomain.on("error", function(err){
