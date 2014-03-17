@@ -5,4 +5,4 @@ message_middleware
 
 ---
 
-![message](http://pic.yupoo.com/kazaff/DC1zvpnL/qFhss.jpg)
+![message](http://pic.yupoo.com/kazaff/DC4UAupZ/uBbc.jpg)
