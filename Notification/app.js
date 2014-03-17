@@ -12,6 +12,19 @@ var app = Restify.createServer()
     , io = require("socket.io").listen(app)
     , users = {};
 
+//数据库连接
+var DbConf = require("./dbConf");
+var ODM = require("./model");
+var options = {server: {socketOptions: {keepAlive: 1}}};
+if(DbConf.account != ""){
+    options.user = DbConf.account;
+}
+if(DbConf.password != ""){
+    options.pass = DbConf.password;
+}
+ODM.db.connect("mongodb://" + DbConf.host + ":" + DbConf.port + "/" + DbConf.database, options);
+//todo 连接数据库错误处理
+
 io.set("log level", 1);     //关闭debug信息
 
 //socket认证
@@ -63,7 +76,7 @@ app.post("/message", function sendMessage(req, res, next){
 
         //todo 存数据库
 
-        //todo 发队列
+        //todo 消息分发
 
         res.send({"status": 1});
         return next();
@@ -92,7 +105,7 @@ app.post("/boradcast", function sendBoradcast(req, res, next){
 
         //todo 存数据库
 
-        //todo 发队列
+        //todo 消息分发
 
         res.send({"status": 1});
         return next();
@@ -106,11 +119,12 @@ var channel = io.of(Config.channel);
 //连接产生
 channel.on("connection", function(socket){
 
-    //console.log(socket.handshake);
+    //todo 通知集群中其他服务把该用户的连接删除
+
     users[socket.handshake.user.id] = socket;
 
-    //获取指定用户所有未读消息总数，并推送到客户端
-    socket.emit(Config.events["news-total"], {0: 2, 1: 2, 2: 3});
+    //todo 获取指定用户所有未读消息总数，并推送到客户端
+    socket.volatile.emit(Config.events["news-total"], {0: 2, 1: 2, 2: 3});
 
     //消息事件体系
     //获取指定类型的指定状态消息列表数据（分页，显示条数）
@@ -135,19 +149,36 @@ channel.on("connection", function(socket){
 
     //用户发送消息
     socket.on("send", function(data, cb){
-        //检查消息数据完整性
-        if(_.keys(data).length === 3 && !_.isUndefined(data.to) && _.isNumber(data.to)){
-            //回执消息
-            cb({ok: 1});
 
-            //todo 插入数据库
+        //检查消息数据完整性
+        if(_.keys(data).length === 4 && !_.isUndefined(data.to) && _.isNumber(data.to)){
+
+            //插入数据库
+            ODM.UserMsg.create({
+                sid: data.sid
+                , to: data.to
+                , from: socket.handshake.user.id
+                , uids:[
+                    {id: data.to, status: 0}
+                    , {id: socket.handshake.user.id, status: 1}
+                ]
+                , title: data.title
+                , message: data.message
+            }, function(err, result){
+                //回执消息
+                if (err){
+                    cb({ok: 0, err: err});
+                };
+
+                cb({ok: 1});
+            });
 
             //查找目标用户是否在线
             if(_.isUndefined(users[data.to])){
-                //todo 插入消息队列
+                //todo 消息分发
 
             }else{
-                users[data.to].emit(Config.events["news-total"], {0: 0, 1: 0, 2: 1});
+                users[data.to].volatile.emit(Config.events["news-total"], {0: 0, 1: 0, 2: 1});
             }
         }else{
             //回执消息

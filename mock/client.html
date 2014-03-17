@@ -117,7 +117,8 @@
   			};
 
 			$scope.form = {
-				to: 7
+				sid: 1
+				, to: 7
 				, title: "test"
 				, message: "中文测试"
 			};
@@ -127,12 +128,13 @@
 			//用户发送消息
 			$scope.send = function(){
 				$scope.sio.emit("send", {
-                    to: $scope.form.to
+					sid: $scope.form.sid
+                    , to: $scope.form.to
                     , title: $scope.form.title
                     , message: $scope.form.message
                 }, function(response){
                 	//检查响应
-
+                	console.log(response);
                 });
 			};
   		});
