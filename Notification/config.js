@@ -11,4 +11,8 @@ module.exports = {
     , host: "localhost"
     , port: 8080
     , channel: "/msg"
+    ,events: {
+        "news-total": "news-total"  //发送指定用户所有未读消息总数
+        , "news-list": "news-list"  //发送指定用户的指定类型的指定状态消息列表数据（分页，显示条数）
+    }
 };

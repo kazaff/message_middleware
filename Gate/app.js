@@ -104,7 +104,6 @@ if(Cluster.isMaster){
         //console.log(api);
 
         //转发
-        var Restify = require("restify");
         var client = Restify.createJsonClient({
             url: api
             , headers: {
@@ -129,7 +128,6 @@ if(Cluster.isMaster){
         api = (api.protocol ? api.protocol : "http") + "://" + api.host + ":" + api.port;
 
         //转发
-        var Restify = require("restify");
         var client = Restify.createJsonClient({
             url: api
             , headers: {

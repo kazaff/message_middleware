@@ -3,6 +3,7 @@
 	<head>
 		<meta charset="utf-8" />
 		<link rel="stylesheet" href="css/bootstrap.css">
+		<link rel="stylesheet" href="css/matrix-style.css">
   		<style>
   			body {
           padding-top: 40px;
@@ -18,42 +19,45 @@
   	<body ng-controller="testCtrl">
       <div class="container">
         <div class="span10">
-          <table class="table table-striped" style="">
-            <thead>
-              <tr>
-                <th class="span2">Name</th>
-                <th>Message</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr ng-repeat="row in messages">
-                <td class="span2"><span class="label label-warning"><i class="icon-user"></i> {{row.name}}</span></td>
-                <td><div class="label label-info" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:500px;"><i class="icon-envelope"></i> {{row.message}}</div></td>
-              </tr>
-            </tbody>
-          </table>
+        	<div class="quick-actions_homepage">
+        		<ul class="quick-actions">
+			        <li class="bg_lb">
+			        	<a href="#"> 
+			        		<i class="icon-inbox"></i> 
+			        		<span class="label label-important" ng-if="msgTotal">{{msgTotal}}</span>
+			        		 消息 
+			        	</a>
+			        </li>
+			    </ul>
+        	</div>
         </div>
 
         <form class="form-horizontal container">
-          <div class="control-group">
-            <label class="control-label" for="name">ID</label>
-            <div class="controls">
-              <input id="name" type="text" ng-model="form.name" placeholder="昵称" />
-            </div>
-          </div>
+			<div class="control-group">
+				<label class="control-label" for="id">目标</label>
+				<div class="controls">
+				  <input id="id" type="text" ng-model="form.to" placeholder="用户id" />
+				</div>
+			</div>
+			<div class="control-group">
+				<label class="control-label" for="title">标题</label>
+				<div class="controls">
+				  <input id="title" type="text" ng-model="form.title" placeholder="标题" />
+				</div>
+			</div>
+			<div class="control-group">
+				<label class="control-label" for="data">消息</label>
+				<div class="controls">
+				  <textarea id="data" ng-model="form.message" placeholder="消息"></textarea>
+				</div>
+			</div>
 
-          <div class="control-group">
-            <label class="control-label" for="data">消息</label>
-            <div class="controls">
-              <textarea id="data" ng-model="form.message" placeholder="消息"></textarea>
-            </div>
-          </div>
-
-          <div class="control-group">
-      			<div class="controls">
-      				<button class="btn btn-success" ng-click="send()" ng-disabled="loading">发送</button>
-      			</div>
-          </div>
+			<div class="control-group">
+				<div class="controls">
+					<button class="btn btn-success" ng-click="send()" ng-disabled="loading">发送</button>
+					<button class="btn btn-warning" ng-click="initSocket()" ng-disabled="reconnection">重连</button>
+				</div>
+			</div>
         </form>
       </div>
   	</body>
@@ -66,42 +70,70 @@
   	<script>
 		var APP = angular.module('APP', ['$strap.directives']);
 
-  		APP.controller('testCtrl', function($scope, $http){
+  		APP.controller('testCtrl', function($scope){
 			
-  			var options = {
-	  			"reconnect": false
-	  		};
+			$scope.sio = null;
+			$scope.reconnection = false;
+  			$scope.initSocket = function(){
+  				$scope.reconnection = true;
+  				console.log("test");
 
-	  		//注意这里把token以url参数的形式绑定在socket上，用于服务器端进行认证
-			var socket = io.connect("http://localhost:8080/msg?auth=123", options);    
-			
-			//todo 要实现所有的错误事件监听，保证消息发送失败后的提示
-			socket.on("error", function(err){
-				console.log(err.toString());
-			});
-			socket.on("disconnect", function(){
+  				var options = {
+		  			"reconnect": false
+		  			, "force new connection": true
+		  		};
+
+	  			//注意这里把token以url参数的形式绑定在socket上，用于服务器端进行认证
+				$scope.sio = io.connect("http://localhost:8080/msg?auth=123", options); 
 				
-			});
+				//todo 要实现所有的错误事件监听，保证消息发送失败后的提示
+				$scope.sio.on("connect_failed", function(err){
+	                console.log("connect_failed: " + err);
+
+	                $scope.msgTotal = 0;
+	                $scope.reconnection = false;
+	                $scope.$root.$$phase || $scope.$apply();
+	            });
+	            $scope.sio.on("error", function(err){
+					console.log("error: " + err);
+					
+					$scope.msgTotal = 0;
+					$scope.reconnection = false;
+					$scope.$root.$$phase || $scope.$apply();
+				});
+				$scope.sio.on("disconnect", function(){
+					console.log("disconnect");
+					
+					$scope.msgTotal = 0;
+					$scope.reconnection = false;
+					$scope.$root.$$phase || $scope.$apply();
+				});
+
+	            //获取当前未读消息数
+	            $scope.sio.on("news-total", function(data){
+	            	$scope.msgTotal += data[0] + data[1] + data[2];
+	            	$scope.$root.$$phase || $scope.$apply();
+	            });
+  			};
 
 			$scope.form = {
-				name: "kazaff"
-				, message: ""
+				to: 7
+				, title: "test"
+				, message: "中文测试"
 			};
 
-			$scope.messages = [];
-
+			$scope.msgTotal = 0;
 			$scope.loading = false;
-
-			socket.on("message", function(data){
-				console.log(data);
-				$scope.messages.push(data);
-				$scope.$root.$$phase || $scope.$apply();
-			});
-
+			//用户发送消息
 			$scope.send = function(){
-				var data = {name: $scope.form.name, message: $scope.form.message};
-				socket.emit("message",data);
-				$scope.messages.push(data);
+				$scope.sio.emit("send", {
+                    to: $scope.form.to
+                    , title: $scope.form.title
+                    , message: $scope.form.message
+                }, function(response){
+                	//检查响应
+
+                });
 			};
   		});
   	</script>
