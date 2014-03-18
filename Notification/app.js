@@ -123,34 +123,6 @@ d.run(function(){
 
             //todo 消息分发
 
-            res.send({"status": 1});
-            return next();
-        });
-    });
-
-    //处理系统发送公告消息
-    app.post("/boradcast", function sendBoradcast(req, res, next){
-
-        //检查请求参数是否有效
-        //console.log(req.body);
-        if( _.isUndefined(req.body.message) || _.str.trim(req.body.message) == ""){
-            return next(new Restify.InvalidArgumentError());
-        }
-
-        //检查请求来源是否有效
-        var token = req.header("auth");
-        if(!token){
-            return next(new Restify.UnauthorizedError("authentication required"));
-        }
-
-        Auth.machine(Config.machine, Config.appId, token, Config.token, function(err, data){
-            if(err){
-                return next(err);
-            }
-
-            //todo 存数据库
-
-            //todo 消息分发
 
             res.send({"status": 1});
             return next();
@@ -168,8 +140,47 @@ d.run(function(){
 
         users[socket.handshake.user.id] = socket;
 
-        //todo 获取指定用户所有未读消息总数，并推送到客户端
-        socket.volatile.emit(Config.events["news-total"], {0: 2, 1: 2, 2: 3});
+        //获取指定用户所有未读消息总数，并推送到客户端
+        var newsTotal = {};
+        //检查系统消息总数
+        ODM.SystemMsg.where({
+            uids: {
+                "$elemMatch": {
+                    id: socket.handshake.user.id
+                    , status: 0
+                }
+            }
+        })
+            .count(function(err, count){
+                if(err){
+                    //todo
+                }
+
+                newsTotal[0] = count;
+                if(_.keys(newsTotal).length === 2){
+                    socket.volatile.emit(Config.events["news-total"], newsTotal);
+                }
+            });
+        //检查用户消息总数
+        ODM.UserMsg.where({
+            to: socket.handshake.user.id
+            , uids: {
+                "$elemMatch": {
+                    id: socket.handshake.user.id
+                    , status: 0
+                }
+            }
+        })
+            .count(function(err, count){
+                if(err){
+                    //todo
+                }
+
+                newsTotal[1] = count;
+                if(_.keys(newsTotal).length === 2){
+                    socket.volatile.emit(Config.events["news-total"], newsTotal);
+                }
+            });
 
         //消息事件体系
         //获取指定类型的指定状态消息列表数据（分页，显示条数）
@@ -198,6 +209,11 @@ d.run(function(){
             //检查消息数据完整性
             if(_.keys(data).length === 4 && !_.isUndefined(data.to) && _.isNumber(data.to)){
 
+                //自己不能给自己发消息
+                if(data.to == socket.handshake.user.id){
+                    return cb({ok: 0, err: new Restify.InvalidArgumentError()});
+                }
+
                 //插入数据库
                 ODM.UserMsg.create({
                     sid: data.sid
@@ -212,7 +228,7 @@ d.run(function(){
                 }, function(err, result){
                     //回执消息
                     if (err){
-                        cb({ok: 0, err: err});
+                        return cb({ok: 0, err: err});
                     };
 
                     cb({ok: 1});
@@ -223,7 +239,7 @@ d.run(function(){
                     //todo 消息分发
 
                 }else{
-                    users[data.to].volatile.emit(Config.events["news-total"], {0: 0, 1: 0, 2: 1});
+                    users[data.to].volatile.emit(Config.events["news-total"], {0: 0, 1: 1});
                 }
             }else{
                 //回执消息

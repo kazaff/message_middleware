@@ -30,27 +30,8 @@ var UserMsg = mongoose.model("userMsg", new Schema({
     , time: {type: Date, default: Date.now}
 }));
 
-//系统公告
-var BroadcastMsg = mongoose.model("broadcastMsg", new Schema({
-    sid: Number
-    , uids: {type: Number, default: 0}
-    , title: String
-    , message: String
-    , time: {type: Date, default: Date.now}
-}));
-
-var UserBCMsg = mongoose.model("userBCMsg", new Schema({
-    mid: Schema.Types.ObjectId
-    , sid: Number
-    , uid: Number
-    , status: {type: Number, default: 0}
-    , time: {type: Date, default: Date.now}
-}));
-
 module.exports = {
     db: mongoose
     , SystemMsg: SystemMsg
     , UserMsg: UserMsg
-    , BroadcastMsg: BroadcastMsg
-    , UserBCMsg: UserBCMsg
 };

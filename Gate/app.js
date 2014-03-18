@@ -119,30 +119,6 @@ if(Cluster.isMaster){
         });
     });
 
-    //映射系统公告发送接口
-    server.post("/boradcast", function(req, res, next){
-
-        //获取消息服务器真实地址
-        var api = Balancing.poll(Config.servers);
-        api = (api.protocol ? api.protocol : "http") + "://" + api.host + ":" + api.port;
-
-        //转发
-        var client = Restify.createJsonClient({
-            url: api
-            , headers: {
-                "AUTH": req.header("auth")
-            }
-        });
-        client.post("/boradcast", req.body, function(err, request, response, obj){
-            if(err){
-                return next(err);
-            }
-
-            res.send(obj);
-            next();
-        });
-    });
-
     //验证用户身份
     server.use(function auth(req, res, next){
 

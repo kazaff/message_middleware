@@ -111,7 +111,7 @@
 
 	            //获取当前未读消息数
 	            $scope.sio.on("news-total", function(data){
-	            	$scope.msgTotal += data[0] + data[1] + data[2];
+	            	$scope.msgTotal += data[0] + data[1];
 	            	$scope.$root.$$phase || $scope.$apply();
 	            });
   			};
