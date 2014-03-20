@@ -6,28 +6,34 @@
 var mongoose = require("mongoose");
 var Schema = mongoose.Schema;
 
+
+var userUid = new Schema({
+    id: Number
+    , status: {
+        type: Number
+        , default: 0
+    }
+}, {_id: false});
+
 //系统消息
 var SystemMsg = mongoose.model("systemMsg", new Schema({
     sid: Number
-    , uids: [
-        {id: Number, status: {type: Number, default: 0}}
-    ]
+    , time: {type: Date, default: Date.now}
+    , uids: [userUid]
     , title: String
     , message: String
-    , time: {type: Date, default: Date.now}
 }));
 
 //用户消息
+
 var UserMsg = mongoose.model("userMsg", new Schema({
     sid: Number
     , to: Number
     , from: Number
-    , uids: [
-        {id: Number, status: {type: Number, default: 0}}
-    ]
+    , uids: [userUid]
+    , time: {type: Date, default: Date.now}
     , title: String
     , message: String
-    , time: {type: Date, default: Date.now}
 }));
 
 module.exports = {

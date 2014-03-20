@@ -12,7 +12,8 @@ process.on("uncaughtException", function(err){
     }
 });
 //todo
-var d = require("domain").create();
+var Domain = require("domain");
+var d = Domain.create();
 d.on("error", function(err){
     try{
         console.log("Domain err", err);
@@ -28,6 +29,7 @@ d.run(function(){
     var _ = require("underscore");
     _.str = require("underscore.string");
     var Restify = require("restify");
+    var Dispatch = require("./dispatch");
     var app = Restify.createServer()
         , io = require("socket.io").listen(app)
         , users = {};
@@ -96,6 +98,26 @@ d.run(function(){
         return next();
     });
 
+    //处理来自消息分发器的消息分发
+    app.post("/dispatch", function getDispatch(req, res, next){
+        //todo 权衡是否需要认证
+
+        //检查参数完整性
+        //console.log(req.body);
+        if(_.isUndefined(req.body.ids)
+            || !_.isArray(req.body.ids)
+            || _.isUndefined(req.body.type)
+            || !_.isNumber(req.body.type)
+            || _.indexOf([0, 1], req.body.type) == -1){
+            return next(new Restify.InvalidArgumentError());
+        }
+
+        res.send({ok: 1});
+
+        //消息分发
+        Dispatch(req.body.ids, users, req.body.type, false);
+    });
+
     //处理系统发送消息
     app.post("/message", function sendMessage(req, res, next){
 
@@ -103,6 +125,8 @@ d.run(function(){
         //console.log(req.body);
         if( _.isUndefined(req.body.message)
             || _.str.trim(req.body.message) == ""
+            || _.isUndefined(req.body.title)
+            || _.str.trim(req.body.title) == ""
             || _.isUndefined(req.body.to)
             || !_.isArray(req.body.to)){
             return next(new Restify.InvalidArgumentError());
@@ -119,17 +143,31 @@ d.run(function(){
                 return next(err);
             }
 
-            //todo 存数据库
+            //存数据库
+            var uids = [];
+            _.each(req.body.to, function(item){
+                uids.push({id: item});
+            });
+            ODM.SystemMsg.create({
+                sid: data.appId
+                , title: req.body.title
+                , message: req.body.message
+                , uids: uids
+            }, function(err, result){
+                if(err){
+                    //todo
+                }
 
-            //todo 消息分发
+                res.send({"status": 1});
 
+                Dispatch(req.body.to, users, 0, true);
+            });
 
-            res.send({"status": 1});
             return next();
         });
     });
 
-    app.listen(8080, "localhost");
+    app.listen(Config.port, Config.host);
 
     //绑定频道
     var channel = io.of(Config.channel);
@@ -154,6 +192,8 @@ d.run(function(){
             .count(function(err, count){
                 if(err){
                     //todo
+
+                    count = 0;
                 }
 
                 newsTotal[0] = count;
@@ -174,6 +214,8 @@ d.run(function(){
             .count(function(err, count){
                 if(err){
                     //todo
+
+                    count = 0;
                 }
 
                 newsTotal[1] = count;
@@ -184,27 +226,312 @@ d.run(function(){
 
         //消息事件体系
         //获取指定类型的指定状态消息列表数据（分页，显示条数）
-        socket.on("news-list", function(data){
-            //todo
+        socket.on(Config.events["news-list"], function(data, cb){
+            //检查参数完整性
+            if(_.keys(data).length === 4
+                && _.isNumber(data.type)
+                && _.isNumber(data.status)
+                && _.isNumber(data.page)
+                && _.isNumber(data.perPage)){
+
+                if(data.type == 0){     //系统类型
+
+                    ODM.SystemMsg.find({
+                        uids: {
+                            "$elemMatch": {
+                                id: socket.handshake.user.id
+                                , status: data.status
+                            }
+                        }
+                    })
+                        .sort("-time")
+                        .select("-uids -message")
+                        .skip((data.page - 1) * data.perPage)
+                        .limit(data.perPage)
+                        .exec(function(err, msgs){
+                            if(err){
+                                //todo
+
+                                return cb({ok: 0, err: err});
+                            }
+
+                            cb(msgs);
+                        });
+
+                }else{      //用户类型
+
+                    ODM.UserMsg.find({
+                        to: socket.handshake.user.id
+                        , uids: {
+                            "$elemMatch": {
+                                id: socket.handshake.user.id
+                                , status: data.status
+                            }
+                        }
+                    })
+                        .sort("-time")
+                        .select("-uids -message")
+                        .skip((data.page - 1) * data.perPage)
+                        .limit(data.perPage)
+                        .exec(function(err, msgs){
+                            if(err){
+                                //todo
+
+                                return cb({ok: 0, err: err});
+                            }
+
+                            cb(msgs);
+                        });
+                }
+
+            }else{
+                cb({ok: 0, err: new Restify.InvalidArgumentError()});
+            }
         });
 
         //忽略指定类型的所有未读消息（设置已读）
-        socket.on("ignore-news", function(data){
-            //todo
+        socket.on(Config.events["ignore-news"], function(data, cb){
+            //检查参数完整性
+            if(_.keys(data).length === 1
+                && _.isNumber(data.type)){
+
+                if(data.type == 0){     //系统类型
+
+                    ODM.SystemMsg.update({
+                        uids: {
+                            "$elemMatch": {
+                                id: socket.handshake.user.id
+                                , status: 0
+                            }
+                        }
+                    }, {
+                        "$set": {
+                            "uids.$.status": 1
+                        }
+                    }, {
+                        multi: true
+                    }, function(err, numberAffected, raw){
+                        if (err){
+                            //todo
+
+                            return cb({ok: 0, err: err});
+                        }
+
+                        cb({ok:1, num: -numberAffected});
+                    });
+
+                }else{      //用户类型
+
+                    ODM.UserMsg.update({
+                        to: socket.handshake.user.id
+                        , uids: {
+                            "$elemMatch": {
+                                id: socket.handshake.user.id
+                                , status: 0
+                            }
+                        }
+                    }, {
+                        "$set": {
+                            "uids.$.status": 1
+                        }
+                    }, {
+                        multi: true
+                    }, function(err, numberAffected, raw){
+                        if (err){
+                            //todo
+
+                            return cb({ok: 0, err: err});
+                        }
+
+                        cb({ok:1, num: -numberAffected});
+                    });
+                }
+            }else{
+                cb({ok: 0, err: new Restify.InvalidArgumentError()});
+            }
         });
 
         //删除指定消息
-        socket.on("remove-new", function(data){
-            //todo
+        socket.on(Config.events["remove-new"], function(data, cb){
+            //检查参数完整性
+            if(_.keys(data).length === 2 && !_.isUndefined(data.id) && _.isNumber(data.type)){
+
+                if(data.type == 0){     //系统消息
+
+                    ODM.SystemMsg.update({
+                        _id: data.id
+                        , "uids.id": socket.handshake.user.id
+                    }, {
+                        "$set": {
+                            "uids.$.status": -1
+                        }
+                    }, function(err, numberAffected, raw){
+
+                        if (err){
+                            //todo
+
+                            return cb({ok: 0, err: err});
+                        }
+
+                        cb({ok: 1});
+
+                        //尝试删除
+                        ODM.SystemMsg.count({
+                            _id: data.id
+                            , uids: {
+                                "$elemMatch": {
+                                    status: {"$gte": 0}
+                                }
+                            }
+                        }, function(err, count){
+
+                            if (err){
+                                //todo
+                                return;
+                            }
+
+                            if(count == 0){
+                                ODM.SystemMsg.remove({_id: data.id}, function(err){
+                                    if (err){
+                                        //todo
+                                        return;
+                                    }
+                                });
+                            }
+                        });
+
+                    });
+
+                }else if(data.type == 1){       //用户消息
+
+                    ODM.UserMsg.update({
+                        _id: data.id
+                        , "uids.id": socket.handshake.user.id
+                    }, {
+                        "$set": {
+                            "uids.$.status": -1
+                        }
+                    }, function(err, numberAffected, raw){
+
+                        if (err){
+                            //todo
+
+                            return cb({ok: 0, err: err});
+                        }
+
+                        cb({ok: 1});
+
+                        //尝试删除
+                        ODM.UserMsg.count({
+                            _id: data.id
+                            , uids: {
+                                "$elemMatch": {
+                                    status: {"$gte": 0}
+                                }
+                            }
+                        }, function(err, count){
+
+                            if (err){
+                                //todo
+                                return;
+                            }
+
+                            if(count == 0){
+                                ODM.UserMsg.remove({_id: data.id}, function(err){
+                                    if (err){
+                                        //todo
+                                        return;
+                                    }
+                                });
+                            }
+                        });
+                    });
+
+                }
+
+            }else{
+                //回执消息
+                cb({ok: 0, err: new Restify.InvalidArgumentError()});
+            }
         });
 
         //查看指定消息详情
-        socket.on("new-info", function(data){
-            //todo
+        socket.on(Config.events["new-info"], function(data, cb){
+
+            //检查参数完整性
+            if(_.keys(data).length === 2 && !_.isUndefined(data.id) && _.isNumber(data.type)){
+
+                //获取消息信息
+                if(data.type == 0){     //系统消息
+
+                    ODM.SystemMsg.findById(data.id, "-uids", function(err, msg){
+                        if (err){
+                            //todo
+
+                            return cb({ok: 0, err: err});
+                        }
+
+                        cb(msg);
+
+                        //设置该消息为已读
+                        ODM.SystemMsg.update({
+                            _id: data.id
+                            , "uids.id": socket.handshake.user.id
+                        }, {
+                            "$set": {
+                                "uids.$.status": 1
+                            }
+                        }, function(err, numberAffected, raw){
+                            if (err){
+                                //todo
+                                return;
+                            }
+
+                            //更新未读消息条数
+                            socket.volatile.emit(Config.events["news-total"], {0: -1, 1: 0});
+                        });
+                    });
+
+                }else if(data.type == 1){       //用户消息
+
+                    ODM.UserMsg.findById(data.id, "-to -uids", function(err, msg){
+                        if (err){
+                            //todo
+
+                            return cb({ok: 0, err: err});
+                        }
+
+                        cb(msg);
+
+                        //设置该消息为已读
+                        ODM.UserMsg.update({
+                            _id: data.id
+                            , "uids.id": socket.handshake.user.id
+                        }, {
+                            "$set": {
+                                "uids.$.status": 1
+                            }
+                        }, function(err, numberAffected, raw){
+                            if (err){
+                                //todo
+                                return;
+                            }
+
+                            //更新未读消息条数
+                            socket.volatile.emit(Config.events["news-total"], {0: 0, 1: -1});
+                        });
+                    });
+
+                }
+
+            }else{
+                //回执消息
+                cb({ok: 0, err: new Restify.InvalidArgumentError()});
+            }
         });
 
         //用户发送消息
-        socket.on("send", function(data, cb){
+        socket.on(Config.events["send"], function(data, cb){
 
             //检查消息数据完整性
             if(_.keys(data).length === 4 && !_.isUndefined(data.to) && _.isNumber(data.to)){
@@ -228,22 +555,164 @@ d.run(function(){
                 }, function(err, result){
                     //回执消息
                     if (err){
+                        //todo
+
                         return cb({ok: 0, err: err});
-                    };
+                    }
 
                     cb({ok: 1});
                 });
 
-                //查找目标用户是否在线
-                if(_.isUndefined(users[data.to])){
-                    //todo 消息分发
+                //消息分发
+                Dispatch([data.to], users, 1, true);
 
-                }else{
-                    users[data.to].volatile.emit(Config.events["news-total"], {0: 0, 1: 1});
-                }
             }else{
                 //回执消息
                 cb({ok: 0, err: new Restify.InvalidArgumentError()});
+            }
+        });
+
+        //查看指定来源的历史消息列表
+        socket.on(Config.events["history-news"], function(data,cb){
+            //检查参数完整性
+            if(_.keys(data).length === 3 && _.isNumber(data.from) && _.isNumber(data.type) && _.isNumber(data.page)){
+
+                if(data.type === 0){    //系统类型
+
+                    ODM.SystemMsg.find({
+                        sid: data.from
+                        , uids: {
+                            "$elemMatch": {
+                                id: socket.handshake.user.id
+                                , status: {
+                                    "$gte": 0
+                                }
+                            }
+                        }
+                    })
+                        .sort("-time")
+                        .select("-uids")
+                        .skip((data.page - 1) * 20)
+                        .limit(20)
+                        .exec(function(err, msgs){
+                            if(err){
+                                //todo
+
+                                return cb({ok: 0, err: err});
+                            }
+
+                            cb(msgs);
+
+                            if(msgs.length){
+                                //若存在未读消息，则设置为已读
+                                var ids = [];
+                                _.each(msgs, function(item, index, list){
+                                    ids.push(item._id);
+                                });
+
+                                ODM.SystemMsg.update({
+                                    _id: {
+                                        "$in": ids
+                                    }
+                                    , uids: {
+                                        "$elemMatch": {
+                                            id: socket.handshake.user.id
+                                            , status: 0
+                                        }
+                                    }
+                                }, {
+                                    "$set": {
+                                        "uids.$.status": 1
+                                    }
+                                }, {
+                                    multi: true
+                                }, function(err, numberAffected, raw){
+                                    if(err){
+                                        //todo
+                                        return;
+                                    }
+
+                                    if(numberAffected){
+                                        //更新未读消息数目
+                                        socket.volatile.emit(Config.events["news-total"], {0: -numberAffected, 1: 0});
+                                    }
+                                });
+                            }
+
+                        });
+
+                }else if(data.type === 1){      //用户类型
+
+                    ODM.UserMsg.find({
+                        uids: {
+                            "$all": [
+                                {
+                                    "$elemMatch": {
+                                        id: socket.handshake.user.id
+                                        , status: {
+                                            "$ne": -1
+                                        }
+                                    }
+                                }
+                                , {
+                                    "$elemMatch": {
+                                        id: data.from
+                                    }
+                                }
+                            ]
+                        }
+                    })
+                        .sort("-time")
+                        .select("-uids")
+                        .skip((data.page - 1) * 20)
+                        .limit(20)
+                        .exec(function(err, msgs){
+                            if(err){
+                                //todo
+
+                                return cb({ok: 0, err: err});
+                            }
+
+                            cb(msgs);
+
+                            if(msgs.length){
+                                //若存在未读消息，则设置为已读
+                                var ids = [];
+                                _.each(msgs, function(item, index, list){
+                                    ids.push(item._id);
+                                });
+
+                                ODM.UserMsg.update({
+                                    _id: {
+                                        "$in": ids
+                                    }
+                                    , uids: {
+                                        "$elemMatch": {
+                                            id: socket.handshake.user.id
+                                            , status: 0
+                                        }
+                                    }
+                                }, {
+                                    "$set": {
+                                        "uids.$.status": 1
+                                    }
+                                }, {
+                                    multi: true
+                                }, function(err, numberAffected, raw){
+                                    if(err){
+                                        //todo
+                                        return;
+                                    }
+
+                                    if(numberAffected){
+                                        //更新未读消息数目
+                                        socket.volatile.emit(Config.events["news-total"], {0: 0, 1: -numberAffected});
+                                    }
+                                });
+                            }
+
+                        });
+                }
             }
         });
 
@@ -252,7 +721,7 @@ d.run(function(){
             //删除断开连接的用户socket
             users[socket.handshake.user.id] = null;
             delete users[socket.handshake.user.id];
+            socket = null;
         });
     });
-
 });

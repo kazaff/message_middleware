@@ -1,14 +1,11 @@
 /**
- * Created by @kazaff on 14-3-6.
+ * Created by @kazaff on 14-3-20.
  */
 "use strict";
 
 module.exports = {
-    appId: 777
-    , token: "777"
-    , api: "http://localhost/message_middleware/mock/auth.json"
-    , host: "localhost"
-    , port: 81
+    host: "localhost"
+    , port: 82
     , servers: [
         {
             protocol: "http"
@@ -20,7 +17,7 @@ module.exports = {
             protocol: "http"
             ,host: "localhost"
             , port: 8081
-            , status: true
+            , status: false
         }
     ]
 };

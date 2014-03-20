@@ -68,41 +68,41 @@
   			$scope.form = {
   				url: "http://localhost:81/entity"
   				, type: "GET"
-  				, data: "{}"
+  				, data: '{"to": [7], "title": "test", "message": "中文测试"}'
   			};
 
   			$scope.loading = false;
-	        $scope.alerts = [];
+        $scope.alerts = [];
 
-	        $scope.send = function(){
+        $scope.send = function(){
 
-	        	$scope.loading = true;
-				var data ;
-				try{
-					data = JSON.parse($scope.form.data);
-				}catch(e){
-					$scope.alerts.push({content:'json结构不标准, 键值应使用双引号！', type: "error"});
-				}
+        	$scope.loading = true;
+  				var data ;
+  				try{
+  					data = JSON.parse($scope.form.data);
+  				}catch(e){
+  					$scope.alerts.push({content:'json结构不标准, 键值应使用双引号！', type: "error"});
+  				}
 
-				$http({
-					method: $scope.form.type
-					, url: $scope.form.url
-					, data: data
-					, headers: {
-						"AUTH": $scope.form.token
-					}
-					, timeout: 10000
-				})
-				.success(function(data, status){
-					$scope.loading = false;
-					console.log(data);
-				})
-				.error(function(data, status){
-					$scope.loading = false;
-					console.log(status);
-					console.log(data);
-				});
-	        };
+  				$http({
+  					method: $scope.form.type
+  					, url: $scope.form.url
+  					, data: data
+  					, headers: {
+  						"AUTH": $scope.form.token
+  					}
+  					, timeout: 10000
+  				})
+  				.success(function(data, status){
+  					$scope.loading = false;
+  					console.log(data);
+  				})
+  				.error(function(data, status){
+  					$scope.loading = false;
+  					console.log(status);
+  					console.log(data);
+  				});
+        };
   		});
   	</script>
 </html>
