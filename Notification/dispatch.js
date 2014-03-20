@@ -32,7 +32,7 @@ function dispatch(ids, sockets, type, httpFlag){
         });
 
         if(httpFlag && nofound.length){
-            client.post("/dispatch", {ids: nofound, type: type}, function(err, req, res, obj){
+            rest.post("/dispatch", {ids: nofound, type: type}, function(err, req, res, obj){
                 if(err){
                     //todo
                 }
