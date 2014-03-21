@@ -11,7 +11,7 @@ var rest = require("restify").createJSONClient({
 });
 
 
-function dispatch(ids, sockets, type, httpFlag){
+function dispatch(ids, sockets, type, httpFlag, cb){
     var nofound = [];
     var msgTotal = {0: 0, 1: 0};
 
@@ -34,15 +34,13 @@ function dispatch(ids, sockets, type, httpFlag){
         if(httpFlag && nofound.length){
             rest.post("/dispatch", {ids: nofound, type: type}, function(err, req, res, obj){
                 if(err){
-                    //todo
+                    cb(err);
                 }
             });
         }
 
     }else{
-        //todo
-
-        console.warn("argument wrong!");
+        cb(new Restify.InvalidArgumentError());
     }
 }
 

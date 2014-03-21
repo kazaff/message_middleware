@@ -3,8 +3,14 @@
  */
 "use strict";
 
+var Log = require("log4js");
 var Cluster = require("cluster");
+var Config = require("./config");
+
 if(Cluster.isMaster){
+
+    Log.configure(Config.logMaster);
+    var logger = Log.getLogger();
 
     var numCPUs = require("os").cpus().length;
     for(var i = 0; i < numCPUs; i++){
@@ -12,14 +18,15 @@ if(Cluster.isMaster){
     }
 
     Cluster.on("disconnect", function(worker, code, signal){
-        console.log("worker %d died (%s). restarting...", worker.process.pid, signal || code);
+        logger.fatal("worker %d died (%s). restarting...", worker.process.pid, signal || code);
         Cluster.fork();
     });
 
 }else{      //Worker
 
-    //加载config
-    var Config = require("./config");
+    Log.configure(Config.logWorker);
+    var logger = Log.getLogger();
+
     var Restify = require("restify");
     var Domain = require("domain");
     var Url = require("url");
@@ -28,9 +35,10 @@ if(Cluster.isMaster){
     var server = Restify.createServer({name: "Message Dispatch Server"});
     //处理 uncaughtException
     process.on("uncaughtException", function(err){
-        console.log("uncaughtException", err);
 
         try{
+            logger.fatal("uncaughtException" + err.stack);
+
             var killTimer = setTimeout(function(){
                 process.exit(1);
             }, 30000);
@@ -43,17 +51,18 @@ if(Cluster.isMaster){
             }
 
         }catch(err){
-            console.log("uncaughtException", err.stack);
+            logger.fatal("uncaughtException" + err.stack);
         }
     });
 
     server.use(function(req, res, next){
         var reqDomain = Domain.create();
         reqDomain.on("error", function(err){
-            console.log("Domain err", err);
 
             try{
                 res.send(500);
+
+                logger.fatal("[Domain error]" + err.stack);
 
                 var killTimer = setTimeout(function(){
                     process.exit(1);
@@ -67,7 +76,7 @@ if(Cluster.isMaster){
                 }
 
             }catch(err){
-                console.log("Domain err", err.stack);
+                logger.fatal("[Domain error]" + err.stack);
             }
         });
 
@@ -104,7 +113,7 @@ if(Cluster.isMaster){
                 });
                 client.post("/dispatch", req.body, function(err, request, response, obj){
                     if(err){
-                        //todo
+                        logger.error("/dispatch  " + err.stack);
                     }
                 });
 

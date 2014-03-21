@@ -10,7 +10,7 @@ Log.configure({
             type: "console"
         }, {
             type: "file"
-            , filename: "../logs/notification.log"
+            , filename: "../logs/notification/logs.log"
             , pattern: "-yyyy-MM-dd"
             , alwaysIncludePattern: false
             , category: "notification"
@@ -63,7 +63,11 @@ d.run(function(){
         options.pass = DbConf.password;
     }
     ODM.db.connect("mongodb://" + DbConf.host + ":" + DbConf.port + "/" + DbConf.database, options);
-    //todo 连接数据库错误处理
+    //连接数据库错误处理
+    ODM.db.connection.on("error", function(err){
+        logger.error(err.stack);
+        throw err;
+    });
 
     io.set("logger", logger);
     io.set("log level", 1);
@@ -120,7 +124,7 @@ d.run(function(){
 
     //处理来自消息分发器的消息分发
     app.post("/dispatch", function getDispatch(req, res, next){
-        //todo 权衡是否需要认证
+        //todo 认证
 
         //检查参数完整性
         //console.log(req.body);
@@ -137,7 +141,11 @@ d.run(function(){
         res.send({ok: 1});
 
         //消息分发
-        Dispatch(req.body.ids, users, req.body.type, false);
+        Dispatch(req.body.ids, users, req.body.type, false, function(err, result){
+            if(err){
+                logger.error(err.stack);
+            }
+        });
     });
 
     //处理系统发送消息
@@ -163,7 +171,7 @@ d.run(function(){
             return next(new Restify.UnauthorizedError("authentication required"));
         }
 
-        Auth.machine(Config.machine, Config.appId, token, Config.token, function(err, data){
+        Auth.machine(Config.machine, Config.appId, token, Config.token, function(err){
             if(err){
                 logger.error(err.stack);
                 return next(err);

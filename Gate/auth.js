@@ -19,13 +19,6 @@ module.exports = {
             ip = request.connection.remoteAddress;
         }
 
-        Auth.verify(api, ip, appid, auth, token, function(err, user){
-            if(err){
-                return cb(err);
-            }
-
-            request.user = user;
-            cb();
-        });
+        Auth.verify(api, ip, appid, auth, token, cb);
     }
 };

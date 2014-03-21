@@ -3,8 +3,14 @@
  */
 "use strict";
 
+var Log = require("log4js");
+var Config = require("./config");
 var Cluster = require("cluster");
+
 if(Cluster.isMaster){
+
+    Log.configure(Config.logMaster);
+    var logger = Log.getLogger();
 
     var numCPUs = require("os").cpus().length;
     for(var i = 0; i < numCPUs; i++){
@@ -12,14 +18,15 @@ if(Cluster.isMaster){
     }
 
     Cluster.on("disconnect", function(worker, code, signal){
-        console.log("worker %d died (%s). restarting...", worker.process.pid, signal || code);
+        logger.fatal("worker %d died (%s). restarting...", worker.process.pid, signal || code);
         Cluster.fork();
     });
 
 }else{      //Worker
 
-    //加载config
-    var Config = require("./config");
+    Log.configure(Config.logWorker);
+    var logger = Log.getLogger();
+
     var Restify = require("restify");
     var Auth = require("./auth");
     var Balancing = require("./balancing");
@@ -37,9 +44,10 @@ if(Cluster.isMaster){
 
     //处理 uncaughtException
     process.on("uncaughtException", function(err){
-        console.log("uncaughtException", err);
 
         try{
+            logger.fatal("uncaughtException" + err.stack);
+
             var killTimer = setTimeout(function(){
                 process.exit(1);
             }, 30000);
@@ -52,17 +60,18 @@ if(Cluster.isMaster){
             }
 
         }catch(err){
-            console.log("uncaughtException", err.stack);
+            logger.fatal("uncaughtException" + err.stack);
         }
     });
 
     server.use(function(req, res, next){
         var reqDomain = Domain.create();
         reqDomain.on("error", function(err){
-            console.log("Domain err", err);
 
             try{
                 res.send(500);
+
+                logger.fatal("[Domain error]" + err.stack);
 
                 var killTimer = setTimeout(function(){
                     process.exit(1);
@@ -76,7 +85,7 @@ if(Cluster.isMaster){
                 }
 
             }catch(err){
-                console.log("Domain err", err.stack);
+                logger.fatal("[Domain error]" + err.stack);
             }
         });
 
@@ -100,7 +109,6 @@ if(Cluster.isMaster){
         //获取消息服务器真实地址
         var api = Balancing.poll(Config.servers);
         api = (api.protocol ? api.protocol : "http") + "://" + api.host + ":" + api.port;
-        //console.log(api);
 
         //转发
         var client = Restify.createJsonClient({
@@ -111,6 +119,7 @@ if(Cluster.isMaster){
         });
         client.post("/message", req.body, function(err, request, response, obj){
             if(err){
+                logger.error("/message  " + err.stack);
                 return next(err);
             }
 
@@ -124,11 +133,20 @@ if(Cluster.isMaster){
 
         var token = req.header("auth");
         if(!token){
+            logger.warn("[UnauthorizedError] " + JSON.stringify(req.headers));
             return next(new Restify.UnauthorizedError("authentication required"));
         }
 
         //获取用户信息
-        Auth.verify(req, Config.appId, Config.api, token, Config.token, next);
+        Auth.verify(req, Config.appId, Config.api, token, Config.token, function(err, user){
+            if(err){
+                logger.error(err.stack);
+                return next(err);
+            }
+
+            req.user = user;
+            next();
+        });
 
         return;
     });
@@ -140,11 +158,9 @@ if(Cluster.isMaster){
         try{
             target = Balancing.poll(Config.servers);
         }catch(err){
+            logger.warn("/entity  " + err.stack);
             return next(err);
         }
-
-        console.log("Worker " + Cluster.worker.id + " handle!");
-        //throw new Error("test");
 
         res.send(target);
         return next();
