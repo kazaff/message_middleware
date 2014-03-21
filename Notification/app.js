@@ -2,24 +2,42 @@
  * Created by @kazaff on 14-3-10.
  */
 "use strict";
-//todo 处理 uncaughtException
+
+var Log = require("log4js");
+Log.configure({
+    appenders: [
+        {
+            type: "console"
+        }, {
+            type: "file"
+            , filename: "../logs/notification.log"
+            , pattern: "-yyyy-MM-dd"
+            , alwaysIncludePattern: false
+            , category: "notification"
+        }
+    ]
+    , replaceConsole: true
+}, {});
+var logger = Log.getLogger("notification");
+
+//处理 uncaughtException
 process.on("uncaughtException", function(err){
     try{
-        console.log("uncaughtException", err);
+        logger.fatal("uncaughtException" + err.stack);
         process.exit(1);
     }catch(err){
-        console.log("uncaughtException", err.stack);
+        logger.fatal("uncaughtException" + err.stack);
     }
 });
-//todo
+
 var Domain = require("domain");
 var d = Domain.create();
 d.on("error", function(err){
     try{
-        console.log("Domain err", err);
+        logger.fatal("[Domain error]" + err.stack);
         process.exit(1);
     }catch(err){
-        console.log("Domain err", err.stack);
+        logger.fatal("[Domain error]" + err.stack);
     }
 });
 d.run(function(){
@@ -47,7 +65,8 @@ d.run(function(){
     ODM.db.connect("mongodb://" + DbConf.host + ":" + DbConf.port + "/" + DbConf.database, options);
     //todo 连接数据库错误处理
 
-    io.set("log level", 1);     //关闭debug信息
+    io.set("logger", logger);
+    io.set("log level", 1);
 
     //socket认证
     io.set("authorization", function(data, accept){
@@ -59,6 +78,7 @@ d.run(function(){
         if(_.keys(data.query).length === 2 && _.has(data.query, "auth") && _.has(data.query, "t")){
             Auth.verify(data, Config.appId, Config.api, Config.token, accept);
         }else{
+            logger.warn("WebSocket  [InvalidArgumentError] " + JSON.stringify(data.query));
             accept(new Restify.InvalidArgumentError(), false);
         }
     });
@@ -66,20 +86,20 @@ d.run(function(){
     app.use(function(req, res, next){
         var reqDomain = Domain.create();
         reqDomain.on("error", function(err){
-            console.log("Domain err", err);
-
             try{
                 res.send(500);
+
+                logger.fatal("[Domain error]" + err.stack);
 
                 var killTimer = setTimeout(function(){
                     process.exit(1);
                 }, 30000);
                 killTimer.unref();
 
-                server.close();
+                app.close();
 
             }catch(err){
-                console.log("Domain err", err.stack);
+                logger.fatal("[Domain error]" + err.stack);
             }
         });
 
@@ -109,6 +129,8 @@ d.run(function(){
             || _.isUndefined(req.body.type)
             || !_.isNumber(req.body.type)
             || _.indexOf([0, 1], req.body.type) == -1){
+
+            logger.warn("/dispatch  [InvalidArgumentError] " + JSON.stringify(req.body));
             return next(new Restify.InvalidArgumentError());
         }
 
@@ -129,17 +151,21 @@ d.run(function(){
             || _.str.trim(req.body.title) == ""
             || _.isUndefined(req.body.to)
             || !_.isArray(req.body.to)){
+
+            logger1.warn("/message  [InvalidArgumentError] " + JSON.stringify(req.body));
             return next(new Restify.InvalidArgumentError());
         }
 
         //检查请求来源是否有效
         var token = req.header("auth");
         if(!token){
+            logger.warn("/message  [UnauthorizedError] " + JSON.stringify(req.headers));
             return next(new Restify.UnauthorizedError("authentication required"));
         }
 
         Auth.machine(Config.machine, Config.appId, token, Config.token, function(err, data){
             if(err){
+                logger.error(err.stack);
                 return next(err);
             }
 
@@ -155,7 +181,9 @@ d.run(function(){
                 , uids: uids
             }, function(err, result){
                 if(err){
-                    //todo
+                    logger.error(err.stack);
+                    res.send({"status": 0});
+                    return;
                 }
 
                 res.send({"status": 1});
@@ -175,6 +203,7 @@ d.run(function(){
     channel.on("connection", function(socket){
 
         //todo 通知集群中其他服务把该用户的连接删除
+        //暂时不实现这个功能，因为我们的系统允许单个账号同时多地登录
 
         users[socket.handshake.user.id] = socket;
 
@@ -191,8 +220,7 @@ d.run(function(){
         })
             .count(function(err, count){
                 if(err){
-                    //todo
-
+                    logger.error(err.stack);
                     count = 0;
                 }
 
@@ -213,8 +241,7 @@ d.run(function(){
         })
             .count(function(err, count){
                 if(err){
-                    //todo
-
+                    logger.error(err.stack);
                     count = 0;
                 }
 
@@ -250,8 +277,7 @@ d.run(function(){
                         .limit(data.perPage)
                         .exec(function(err, msgs){
                             if(err){
-                                //todo
-
+                                logger.error(err.stack);
                                 return cb({ok: 0, err: err});
                             }
 
@@ -275,8 +301,7 @@ d.run(function(){
                         .limit(data.perPage)
                         .exec(function(err, msgs){
                             if(err){
-                                //todo
-
+                                logger.error(err.stack);
                                 return cb({ok: 0, err: err});
                             }
 
@@ -312,8 +337,7 @@ d.run(function(){
                         multi: true
                     }, function(err, numberAffected, raw){
                         if (err){
-                            //todo
-
+                            logger.error(err.stack);
                             return cb({ok: 0, err: err});
                         }
 
@@ -338,8 +362,7 @@ d.run(function(){
                         multi: true
                     }, function(err, numberAffected, raw){
                         if (err){
-                            //todo
-
+                            logger.error(err.stack);
                             return cb({ok: 0, err: err});
                         }
 
@@ -368,8 +391,7 @@ d.run(function(){
                     }, function(err, numberAffected, raw){
 
                         if (err){
-                            //todo
-
+                            logger.error(err.stack);
                             return cb({ok: 0, err: err});
                         }
 
@@ -386,14 +408,14 @@ d.run(function(){
                         }, function(err, count){
 
                             if (err){
-                                //todo
+                                logger.error(err.stack);
                                 return;
                             }
 
                             if(count == 0){
                                 ODM.SystemMsg.remove({_id: data.id}, function(err){
                                     if (err){
-                                        //todo
+                                        logger.error(err.stack);
                                         return;
                                     }
                                 });
@@ -414,8 +436,7 @@ d.run(function(){
                     }, function(err, numberAffected, raw){
 
                         if (err){
-                            //todo
-
+                            logger.error(err.stack);
                             return cb({ok: 0, err: err});
                         }
 
@@ -432,14 +453,14 @@ d.run(function(){
                         }, function(err, count){
 
                             if (err){
-                                //todo
+                                logger.error(err.stack);
                                 return;
                             }
 
                             if(count == 0){
                                 ODM.UserMsg.remove({_id: data.id}, function(err){
                                     if (err){
-                                        //todo
+                                        logger.error(err.stack);
                                         return;
                                     }
                                 });
@@ -466,8 +487,7 @@ d.run(function(){
 
                     ODM.SystemMsg.findById(data.id, "-uids", function(err, msg){
                         if (err){
-                            //todo
-
+                            logger.error(err.stack);
                             return cb({ok: 0, err: err});
                         }
 
@@ -483,7 +503,7 @@ d.run(function(){
                             }
                         }, function(err, numberAffected, raw){
                             if (err){
-                                //todo
+                                logger.error(err.stack);
                                 return;
                             }
 
@@ -496,8 +516,7 @@ d.run(function(){
 
                     ODM.UserMsg.findById(data.id, "-to -uids", function(err, msg){
                         if (err){
-                            //todo
-
+                            logger.error(err.stack);
                             return cb({ok: 0, err: err});
                         }
 
@@ -513,7 +532,7 @@ d.run(function(){
                             }
                         }, function(err, numberAffected, raw){
                             if (err){
-                                //todo
+                                logger.error(err.stack);
                                 return;
                             }
 
@@ -555,8 +574,7 @@ d.run(function(){
                 }, function(err, result){
                     //回执消息
                     if (err){
-                        //todo
-
+                        logger.error(err.stack);
                         return cb({ok: 0, err: err});
                     }
 
@@ -596,8 +614,7 @@ d.run(function(){
                         .limit(20)
                         .exec(function(err, msgs){
                             if(err){
-                                //todo
-
+                                logger.error(err.stack);
                                 return cb({ok: 0, err: err});
                             }
 
@@ -628,7 +645,7 @@ d.run(function(){
                                     multi: true
                                 }, function(err, numberAffected, raw){
                                     if(err){
-                                        //todo
+                                        logger.error(err.stack);
                                         return;
                                     }
 
@@ -668,8 +685,7 @@ d.run(function(){
                         .limit(20)
                         .exec(function(err, msgs){
                             if(err){
-                                //todo
-
+                                logger.error(err.stack);
                                 return cb({ok: 0, err: err});
                             }
 
@@ -700,7 +716,7 @@ d.run(function(){
                                     multi: true
                                 }, function(err, numberAffected, raw){
                                     if(err){
-                                        //todo
+                                        logger.error(err.stack);
                                         return;
                                     }
 

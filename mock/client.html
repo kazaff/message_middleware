@@ -231,7 +231,7 @@
 
 			//忽略全部
 			$scope.ignoreAll = function(type){
-				$scope.sio.emit("ignore-news", {type: type}, function(response){
+				$scope.sio.emit("ignore-news", {type: parseInt(type)}, function(response){
 					console.log(response);
 
 					$scope.list = [];
