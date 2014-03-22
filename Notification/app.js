@@ -126,6 +126,7 @@ d.run(function(){
     app.post("/dispatch", function getDispatch(req, res, next){
         //todo 认证
 
+
         //检查参数完整性
         //console.log(req.body);
         if(_.isUndefined(req.body.ids)

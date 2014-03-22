@@ -2,4 +2,6 @@
 node_modules/
 .idea/
 npm-debug.log
-logs/
+logs/dispatch/*
+logs/notification/*
+logs/gate/*
