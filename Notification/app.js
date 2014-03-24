@@ -69,7 +69,7 @@ d.run(function(){
         throw err;
     });
 
-    io.set("logger", logger);
+    //io.set("logger", logger);
     io.set("log level", 1);
 
     //socket认证
@@ -161,7 +161,7 @@ d.run(function(){
             || _.isUndefined(req.body.to)
             || !_.isArray(req.body.to)){
 
-            logger1.warn("/message  [InvalidArgumentError] " + JSON.stringify(req.body));
+            logger.warn("/message  [InvalidArgumentError] " + JSON.stringify(req.body));
             return next(new Restify.InvalidArgumentError());
         }
 
@@ -172,7 +172,7 @@ d.run(function(){
             return next(new Restify.UnauthorizedError("authentication required"));
         }
 
-        Auth.machine(Config.machine, Config.appId, token, Config.token, function(err){
+        Auth.machine(Config.machine, Config.appId, token, Config.token, function(err, data){
             if(err){
                 logger.error(err.stack);
                 return next(err);
@@ -192,15 +192,19 @@ d.run(function(){
                 if(err){
                     logger.error(err.stack);
                     res.send({"status": 0});
-                    return;
+                    return next();
                 }
 
                 res.send({"status": 1});
+                next();
 
-                Dispatch(req.body.to, users, 0, true);
+                //todo 异步任务
+                Dispatch(req.body.to, users, 0, true, function(err, result){
+                    if(err){
+                        logger.error(err.stack);
+                    }
+                });
             });
-
-            return next();
         });
     });
 
@@ -591,7 +595,11 @@ d.run(function(){
                 });
 
                 //消息分发
-                Dispatch([data.to], users, 1, true);
+                Dispatch([data.to], users, 1, true, function(err, result){
+                    if(err){
+                        logger.error(err.stack);
+                    }
+                });
 
             }else{
                 //回执消息
