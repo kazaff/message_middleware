@@ -142,7 +142,7 @@ d.run(function(){
         res.send({ok: 1});
 
         //消息分发
-        Dispatch(req.body.ids, users, req.body.type, false, function(err, result){
+        Dispatch(req.body.ids, users, req.body.type, 1, false, function(err, result){
             if(err){
                 logger.error(err.stack);
             }
@@ -199,7 +199,7 @@ d.run(function(){
                 next();
 
                 //todo 异步任务
-                Dispatch(req.body.to, users, 0, true, function(err, result){
+                Dispatch(req.body.to, users, 0, 1, true, function(err){
                     if(err){
                         logger.error(err.stack);
                     }
@@ -217,8 +217,10 @@ d.run(function(){
 
         //todo 通知集群中其他服务把该用户的连接删除
         //暂时不实现这个功能，因为我们的系统允许单个账号同时多地登录
-
-        users[socket.handshake.user.id] = socket;
+        if(_.isUndefined(users[socket.handshake.user.id])){
+            users[socket.handshake.user.id] = [];
+        }
+        users[socket.handshake.user.id].push(socket);
 
         //获取指定用户所有未读消息总数，并推送到客户端
         var newsTotal = {};
@@ -354,7 +356,11 @@ d.run(function(){
                             return cb({ok: 0, err: err});
                         }
 
-                        cb({ok:1, num: -numberAffected});
+                        cb({ok:1});
+                        //消息分发
+                        Dispatch([socket.handshake.user.id], users, 0, -numberAffected, true, function(err){
+                            logger.error(err.stack);
+                        });
                     });
 
                 }else{      //用户类型
@@ -379,7 +385,11 @@ d.run(function(){
                             return cb({ok: 0, err: err});
                         }
 
-                        cb({ok:1, num: -numberAffected});
+                        cb({ok:1});
+                        //消息分发
+                        Dispatch([socket.handshake.user.id], users, 1, -numberAffected, true, function(err){
+                            logger.error(err.stack);
+                        });
                     });
                 }
             }else{
@@ -509,7 +519,12 @@ d.run(function(){
                         //设置该消息为已读
                         ODM.SystemMsg.update({
                             _id: data.id
-                            , "uids.id": socket.handshake.user.id
+                            , uids: {
+                                "$elemMatch": {
+                                    id: socket.handshake.user.id
+                                    , status: 0
+                                }
+                            }
                         }, {
                             "$set": {
                                 "uids.$.status": 1
@@ -521,7 +536,11 @@ d.run(function(){
                             }
 
                             //更新未读消息条数
-                            socket.volatile.emit(Config.events["news-total"], {0: -1, 1: 0});
+                            //socket.volatile.emit(Config.events["news-total"], {0: -numberAffected, 1: 0});
+                            //消息分发
+                            Dispatch([socket.handshake.user.id], users, 0, -numberAffected, true, function(err){
+                                logger.error(err.stack);
+                            });
                         });
                     });
 
@@ -538,7 +557,12 @@ d.run(function(){
                         //设置该消息为已读
                         ODM.UserMsg.update({
                             _id: data.id
-                            , "uids.id": socket.handshake.user.id
+                            , uids: {
+                                "$elemMatch": {
+                                    id: socket.handshake.user.id
+                                    , status: 0
+                                }
+                            }
                         }, {
                             "$set": {
                                 "uids.$.status": 1
@@ -550,7 +574,11 @@ d.run(function(){
                             }
 
                             //更新未读消息条数
-                            socket.volatile.emit(Config.events["news-total"], {0: 0, 1: -1});
+                            //socket.volatile.emit(Config.events["news-total"], {0: 0, 1: -numberAffected});
+                            //消息分发
+                            Dispatch([socket.handshake.user.id], users, 1, -numberAffected, true, function(err){
+                                logger.error(err.stack);
+                            });
                         });
                     });
 
@@ -595,7 +623,7 @@ d.run(function(){
                 });
 
                 //消息分发
-                Dispatch([data.to], users, 1, true, function(err, result){
+                Dispatch([data.to], users, 1, 1, true, function(err, result){
                     if(err){
                         logger.error(err.stack);
                     }
@@ -608,9 +636,10 @@ d.run(function(){
         });
 
         //查看指定来源的历史消息列表
-        socket.on(Config.events["history-news"], function(data,cb){
+        socket.on(Config.events["history-news"], function(data, cb){
+
             //检查参数完整性
-            if(_.keys(data).length === 3 && _.isNumber(data.from) && _.isNumber(data.type) && _.isNumber(data.page)){
+            if(_.keys(data).length === 4 && _.isNumber(data.from) && _.isNumber(data.type) && _.isNumber(data.page) && _.isNumber(data.perPage)){
 
                 if(data.type === 0){    //系统类型
 
@@ -627,8 +656,8 @@ d.run(function(){
                     })
                         .sort("-time")
                         .select("-uids")
-                        .skip((data.page - 1) * 20)
-                        .limit(20)
+                        .skip((data.page - 1) * data.perPage)
+                        .limit(data.perPage)
                         .exec(function(err, msgs){
                             if(err){
                                 logger.error(err.stack);
@@ -668,7 +697,11 @@ d.run(function(){
 
                                     if(numberAffected){
                                         //更新未读消息数目
-                                        socket.volatile.emit(Config.events["news-total"], {0: -numberAffected, 1: 0});
+                                        //socket.volatile.emit(Config.events["news-total"], {0: -numberAffected, 1: 0});
+                                        //消息分发
+                                        Dispatch([socket.handshake.user.id], users, 0, -numberAffected, true, function(err){
+                                            logger.error(err.stack);
+                                        });
                                     }
                                 });
                             }
@@ -698,8 +731,8 @@ d.run(function(){
                     })
                         .sort("-time")
                         .select("-uids")
-                        .skip((data.page - 1) * 20)
-                        .limit(20)
+                        .skip((data.page - 1) * data.perPage)
+                        .limit(data.perPage)
                         .exec(function(err, msgs){
                             if(err){
                                 logger.error(err.stack);
@@ -739,21 +772,31 @@ d.run(function(){
 
                                     if(numberAffected){
                                         //更新未读消息数目
-                                        socket.volatile.emit(Config.events["news-total"], {0: 0, 1: -numberAffected});
+                                        //socket.volatile.emit(Config.events["news-total"], {0: 0, 1: -numberAffected});
+                                        //消息分发
+                                        Dispatch([socket.handshake.user.id], users, 1, -numberAffected, true, function(err){
+                                            logger.error(err.stack);
+                                        });
                                     }
                                 });
                             }
-
                         });
                 }
+            }else{
+                //回执消息
+                cb({ok: 0, err: new Restify.InvalidArgumentError()});
             }
         });
 
         //连接注销 或 心跳失败后做处理
         socket.on("disconnect", function(){
+
             //删除断开连接的用户socket
-            users[socket.handshake.user.id] = null;
-            delete users[socket.handshake.user.id];
+            var index = _.indexOf(users[socket.handshake.user.id], socket);
+            if(index !== -1){
+                users[socket.handshake.user.id].splice(index, 1);
+            }
+
             socket = null;
         });
     });

@@ -66,9 +66,9 @@
 
   		APP.controller('testCtrl', function($scope, $http){
   			$scope.form = {
-  				url: "http://localhost:81/entity"
-  				, type: "GET"
-  				, data: '{"to": [7], "title": "test", "message": "中文测试"}'
+  				url: "http://localhost:81/message"
+  				, type: "POST"
+  				, data: '{"to":[7], "title":"wahahah我就是超级长的名字，你拿我怎样啊~~~~~~", "message":"fucker!!!"}'
   			};
 
   			$scope.loading = false;

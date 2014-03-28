@@ -11,13 +11,13 @@ var rest = require("restify").createJSONClient({
 });
 
 
-function dispatch(ids, sockets, type, httpFlag, cb){
+function dispatch(ids, sockets, type, total, httpFlag, cb){
     var nofound = [];
     var msgTotal = {0: 0, 1: 0};
 
     if(_.isArray(ids) && _.isNumber(type) && _.indexOf(_.keys(msgTotal), "" + type) != -1){
 
-        msgTotal[type] = 1;
+        msgTotal[type] = total;
 
         if(ids.length == 0){
             return;
@@ -25,7 +25,9 @@ function dispatch(ids, sockets, type, httpFlag, cb){
 
         _.each(ids, function(id){
             if(_.has(sockets, id)){
-                sockets[id].volatile.emit(Config.events["news-total"], msgTotal);
+                _.each(sockets[id], function(item){
+                    item.volatile.emit(Config.events["news-total"], msgTotal);
+                });
             }else{
                 nofound.push(id);
             }
