@@ -296,6 +296,8 @@ d.run(function(){
                                 return cb({ok: 0, err: err});
                             }
 
+                            //todo 获取消息来源的信息
+
                             cb(msgs);
                         });
 
@@ -319,6 +321,8 @@ d.run(function(){
                                 logger.error(err.stack);
                                 return cb({ok: 0, err: err});
                             }
+
+                            //todo 获取消息来源的信息
 
                             cb(msgs);
                         });
@@ -514,6 +518,8 @@ d.run(function(){
                             return cb({ok: 0, err: err});
                         }
 
+                        //todo 获取消息来源的信息
+
                         cb(msg);
 
                         //设置该消息为已读
@@ -551,6 +557,8 @@ d.run(function(){
                             logger.error(err.stack);
                             return cb({ok: 0, err: err});
                         }
+
+                        //todo 获取消息来源的信息
 
                         cb(msg);
 
@@ -664,6 +672,8 @@ d.run(function(){
                                 return cb({ok: 0, err: err});
                             }
 
+                            //todo 获取消息来源的信息
+
                             cb(msgs);
 
                             if(msgs.length){
@@ -738,6 +748,8 @@ d.run(function(){
                                 logger.error(err.stack);
                                 return cb({ok: 0, err: err});
                             }
+
+                            //todo 获取消息来源的信息
 
                             cb(msgs);
 

@@ -5,7 +5,8 @@
 
 var Config = require("./config");
 var _ = require("underscore");
-var rest = require("restify").createJSONClient({
+var Restify = require("restify");
+var rest = Restify.createJSONClient({
     url: Config.dispatch
     , retry: false
 });
