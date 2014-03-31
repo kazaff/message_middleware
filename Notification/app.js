@@ -51,6 +51,7 @@ d.run(function(){
     var app = Restify.createServer()
         , io = require("socket.io").listen(app)
         , users = {};
+    var Who = require("./who");
 
     //数据库连接
     var DbConf = require("./dbConf");
@@ -296,9 +297,35 @@ d.run(function(){
                                 return cb({ok: 0, err: err});
                             }
 
-                            //todo 获取消息来源的信息
+                            if(msgs.length){
+                                //获取消息来源的信息
+                                var sids = [];
+                                _.each(msgs, function(item){
+                                    if(sids.indexOf(item.sid) === -1){
+                                        sids.push(item.sid);
+                                    }
+                                });
 
-                            cb(msgs);
+                                Who(sids, data.type, function(response){
+                                    var data = [];
+                                    if(_.isUndefined(response.ok)){
+                                        _.each(msgs, function(item){
+                                            item = item.toObject();     //把mongoose的document对象转换成普通的js对象，使其支持增加属性
+                                            var info = _.find(response, function(one){                       //        |
+                                                return item.sid == one.id;                                   //        |
+                                            });                                                              //        |
+                                            item.who = {name: (_.isUndefined(info))? "unknown" : info.name};    // <-------
+                                            data.push(item);
+                                        });
+
+                                        cb(data);
+                                    }else{
+                                        return cb(response);    //错误处理
+                                    }
+                                });
+                            }else{
+                                cb([]);
+                            }
                         });
 
                 }else{      //用户类型
@@ -322,9 +349,35 @@ d.run(function(){
                                 return cb({ok: 0, err: err});
                             }
 
-                            //todo 获取消息来源的信息
+                            if(msgs.length){
+                                //获取消息来源的信息
+                                var uids = [];
+                                _.each(msgs, function(item){
+                                    if(uids.indexOf(item.from) === -1){
+                                        uids.push(item.from);
+                                    }
+                                });
 
-                            cb(msgs);
+                                Who(uids, data.type, function(response){
+                                    var data = [];
+                                    if(_.isUndefined(response.ok)){
+                                        _.each(msgs, function(item){
+                                            item = item.toObject();
+                                            var info = _.find(response, function(one){
+                                                return item.from == one.id;
+                                            });
+                                            item.who = {name: (_.isUndefined(info))?"unknown":info.name};
+                                            data.push(item);
+                                        });
+
+                                        cb(data);
+                                    }else{
+                                        return cb(response);    //错误处理
+                                    }
+                                });
+                            }else{
+                                cb([]);
+                            }
                         });
                 }
 
@@ -513,41 +566,52 @@ d.run(function(){
                 if(data.type == 0){     //系统消息
 
                     ODM.SystemMsg.findById(data.id, "-uids", function(err, msg){
+
                         if (err){
                             logger.error(err.stack);
                             return cb({ok: 0, err: err});
                         }
 
-                        //todo 获取消息来源的信息
+                        if(_.isNull(msg)){
+                            cb(null);
+                        }else{
+                            //获取消息来源的信息
+                            Who([msg.sid], data.type, function(response){
+                                if(_.isUndefined(response.ok)){
+                                    msg = msg.toObject();
+                                    msg.who = {name: (_.isEmpty(response))? "unknown" : response[0].name};
 
-                        cb(msg);
-
-                        //设置该消息为已读
-                        ODM.SystemMsg.update({
-                            _id: data.id
-                            , uids: {
-                                "$elemMatch": {
-                                    id: socket.handshake.user.id
-                                    , status: 0
+                                    cb(msg);
+                                }else{
+                                    return cb(response);    //错误处理
                                 }
-                            }
-                        }, {
-                            "$set": {
-                                "uids.$.status": 1
-                            }
-                        }, function(err, numberAffected, raw){
-                            if (err){
-                                logger.error(err.stack);
-                                return;
-                            }
-
-                            //更新未读消息条数
-                            //socket.volatile.emit(Config.events["news-total"], {0: -numberAffected, 1: 0});
-                            //消息分发
-                            Dispatch([socket.handshake.user.id], users, 0, -numberAffected, true, function(err){
-                                logger.error(err.stack);
                             });
-                        });
+
+                            //设置该消息为已读
+                            ODM.SystemMsg.update({
+                                _id: data.id
+                                , uids: {
+                                    "$elemMatch": {
+                                        id: socket.handshake.user.id
+                                        , status: 0
+                                    }
+                                }
+                            }, {
+                                "$set": {
+                                    "uids.$.status": 1
+                                }
+                            }, function(err, numberAffected, raw){
+                                if (err){
+                                    logger.error(err.stack);
+                                    return;
+                                }
+
+                                //消息分发
+                                Dispatch([socket.handshake.user.id], users, 0, -numberAffected, true, function(err){
+                                    logger.error(err.stack);
+                                });
+                            });
+                        }
                     });
 
                 }else if(data.type == 1){       //用户消息
@@ -558,38 +622,47 @@ d.run(function(){
                             return cb({ok: 0, err: err});
                         }
 
-                        //todo 获取消息来源的信息
+                        if(_.isNull(msg)){
+                            cb(null);
+                        }else{
+                            //获取消息来源的信息
+                            Who([msg.from], data.type, function(response){
+                                if(_.isUndefined(response.ok)){
+                                    msg = msg.toObject();
+                                    msg.who = {name: (_.isEmpty(response))? "unknown" : response[0].name};
 
-                        cb(msg);
-
-                        //设置该消息为已读
-                        ODM.UserMsg.update({
-                            _id: data.id
-                            , uids: {
-                                "$elemMatch": {
-                                    id: socket.handshake.user.id
-                                    , status: 0
+                                    cb(msg);
+                                }else{
+                                    return cb(response);    //错误处理
                                 }
-                            }
-                        }, {
-                            "$set": {
-                                "uids.$.status": 1
-                            }
-                        }, function(err, numberAffected, raw){
-                            if (err){
-                                logger.error(err.stack);
-                                return;
-                            }
-
-                            //更新未读消息条数
-                            //socket.volatile.emit(Config.events["news-total"], {0: 0, 1: -numberAffected});
-                            //消息分发
-                            Dispatch([socket.handshake.user.id], users, 1, -numberAffected, true, function(err){
-                                logger.error(err.stack);
                             });
-                        });
-                    });
 
+                            //设置该消息为已读
+                            ODM.UserMsg.update({
+                                _id: data.id
+                                , uids: {
+                                    "$elemMatch": {
+                                        id: socket.handshake.user.id
+                                        , status: 0
+                                    }
+                                }
+                            }, {
+                                "$set": {
+                                    "uids.$.status": 1
+                                }
+                            }, function(err, numberAffected, raw){
+                                if (err){
+                                    logger.error(err.stack);
+                                    return;
+                                }
+
+                                //消息分发
+                                Dispatch([socket.handshake.user.id], users, 1, -numberAffected, true, function(err){
+                                    logger.error(err.stack);
+                                });
+                            });
+                        }
+                    });
                 }
 
             }else{
@@ -672,11 +745,25 @@ d.run(function(){
                                 return cb({ok: 0, err: err});
                             }
 
-                            //todo 获取消息来源的信息
-
-                            cb(msgs);
-
                             if(msgs.length){
+                                //获取消息来源的信息
+                                Who([data.from], data.type, function(response){
+                                    var result = [];
+                                    if(_.isUndefined(response.ok)){
+                                        _.each(msgs, function(item){
+                                            item = item.toObject();
+                                            if(item.sid == data.from){
+                                                item.who = {name: (_.isEmpty(response))?"unknown":response[0].name};
+                                            }
+                                            result.push(item);
+                                        });
+
+                                        cb(result);
+                                    }else{
+                                        return cb(response);    //错误处理
+                                    }
+                                });
+
                                 //若存在未读消息，则设置为已读
                                 var ids = [];
                                 _.each(msgs, function(item, index, list){
@@ -706,16 +793,15 @@ d.run(function(){
                                     }
 
                                     if(numberAffected){
-                                        //更新未读消息数目
-                                        //socket.volatile.emit(Config.events["news-total"], {0: -numberAffected, 1: 0});
                                         //消息分发
                                         Dispatch([socket.handshake.user.id], users, 0, -numberAffected, true, function(err){
                                             logger.error(err.stack);
                                         });
                                     }
                                 });
+                            }else{
+                                cb([]);
                             }
-
                         });
 
                 }else if(data.type === 1){      //用户类型
@@ -749,11 +835,25 @@ d.run(function(){
                                 return cb({ok: 0, err: err});
                             }
 
-                            //todo 获取消息来源的信息
-
-                            cb(msgs);
-
                             if(msgs.length){
+                                //获取消息来源的信息
+                                Who([data.from], data.type, function(response){
+                                    var result = [];
+                                    if(_.isUndefined(response.ok)){
+                                        _.each(msgs, function(item){
+                                            item = item.toObject();
+                                            if(item.from == data.from){
+                                                item.who = {name: (_.isEmpty(response))?"unknown":response[0].name};
+                                            }
+                                            result.push(item);
+                                        });
+
+                                        cb(result);
+                                    }else{
+                                        return cb(response);    //错误处理
+                                    }
+                                });
+
                                 //若存在未读消息，则设置为已读
                                 var ids = [];
                                 _.each(msgs, function(item, index, list){
@@ -791,6 +891,8 @@ d.run(function(){
                                         });
                                     }
                                 });
+                            }else{
+                                cb([]);
                             }
                         });
                 }

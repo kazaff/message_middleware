@@ -6,12 +6,7 @@
 var Config = require("./config");
 var _ = require("underscore");
 var Restify = require("restify");
-var rest = Restify.createJSONClient({
-    retry: false
-    , headers: {
-        "AUTH": "MD " + Config.token
-    }
-});
+var Auth = require("../lib/Auth");
 
 function who(ids, type, cb){
     if(!_.isArray(ids) || [0,1].indexOf(parseInt(type)) === -1){
@@ -24,12 +19,18 @@ function who(ids, type, cb){
         return cb([]);
     }
 
-    rest.get(Config.who + "/users/1,2,3,4", function(err, req, res, obj){
-        console.log(res);
+    var params = Auth.signature(0, Config.appId, {auth:"", ids: JSON.stringify(ids)}, Config.token);
+
+    var rest = Restify.createJSONClient({
+        retry: false
+        , headers: {
+            "PARAMS": params.source + "&sid=" + params.hash
+        }
+    });
+
+    rest.get(Config.who + (type == 0? "/applications" : "/users"), function(err, req, res, obj){
 
         if(err){
-            //todo
-
             return cb({ok:0, err: err});
         }
 
