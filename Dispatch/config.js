@@ -4,18 +4,18 @@
 "use strict";
 
 module.exports = {
-    host: "localhost"
+    host: "192.168.137.77"
     , port: 82
     , servers: [
         {
             protocol: "http"
-            ,host: "localhost"
+            ,host: "192.168.137.77"
             , port: 8080
             , status: true
         }
         , {
             protocol: "http"
-            ,host: "localhost"
+            ,host: "192.168.137.77"
             , port: 8081
             , status: false
         }

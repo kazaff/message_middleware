@@ -168,12 +168,14 @@ d.run(function(){
 
         //检查请求来源是否有效
         var token = req.header("auth");
+
         if(!token){
             logger.warn("/message  [UnauthorizedError] " + JSON.stringify(req.headers));
             return next(new Restify.UnauthorizedError("authentication required"));
         }
 
-        Auth.machine(Config.machine, Config.appId, token, Config.token, function(err, data){
+        Auth.machine(Config.machine, Config.appId, {auth: token}, Config.token, function(err, data){
+
             if(err){
                 logger.error(err.stack);
                 return next(err);

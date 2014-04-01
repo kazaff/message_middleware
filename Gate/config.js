@@ -4,21 +4,21 @@
 "use strict";
 
 module.exports = {
-    appId: 777
-    , token: "777"
-    , api: "http://localhost/message_middleware/mock/auth.json"
-    , host: "localhost"
+    appId: 6
+    , token: "9b4a6888aac3b678faa6bdae3e333438"
+    , api: "http://192.168.137.77/wos/public/index.php?rest/V1/auth"
+    , host: "192.168.137.77"
     , port: 81
     , servers: [
         {
             protocol: "http"
-            ,host: "localhost"
+            ,host: "192.168.137.77"
             , port: 8080
             , status: true
         }
         , {
             protocol: "http"
-            ,host: "localhost"
+            ,host: "192.168.137.77"
             , port: 8081
             , status: false
         }

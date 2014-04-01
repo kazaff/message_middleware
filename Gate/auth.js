@@ -6,7 +6,7 @@
 var Auth = require("../lib/Auth");
 
 module.exports = {
-    verify: function(request, appid, api, auth, token, cb){
+    verify: function(request, appid, api, params, token, cb){
         //获取请求的ip
         var ip;
         var forwardedIpsStr = request.header('x-forwarded-for');
@@ -19,6 +19,9 @@ module.exports = {
             ip = request.connection.remoteAddress;
         }
 
-        Auth.verify(api, ip, appid, auth, token, cb);
+        params.ip = ip;
+        params.type = "user";
+
+        Auth.verify(api, appid, params, token, cb);
     }
 };

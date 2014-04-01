@@ -6,11 +6,11 @@
 var Auth = require("../lib/Auth");
 
 module.exports = {
-    verify: function(socket, appid, api, token, cb){
+    verify: function(socket, appId, api, token, cb){
         //获取请求的ip
         var ip = socket.address.address;
 
-        Auth.verify(api, ip, appid, socket.query.auth, token, function(err, user){
+        Auth.verify(api, appId, {type: "user",ip: ip, auth: socket.query.auth}, token, function(err, user){
             if(err){
                 return cb(err, false);
             }
@@ -19,7 +19,8 @@ module.exports = {
             cb(null, true);
         });
     }
-    , machine: function(api, appid, auth, token, cb){
-        Auth.verify(api, 0, appid, auth, token, cb);
+    , machine: function(api, appId, params, token, cb){
+        params.type = "detail";
+        Auth.verify(api, appId, params, token, cb);
     }
 };

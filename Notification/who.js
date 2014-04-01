@@ -19,16 +19,17 @@ function who(ids, type, cb){
         return cb([]);
     }
 
-    var params = Auth.signature(0, Config.appId, {auth:"", ids: JSON.stringify(ids)}, Config.token);
+    var params = Auth.signature(Config.appId, {ids: JSON.stringify(ids)}, Config.token);
 
     var rest = Restify.createJSONClient({
         retry: false
+        , url: Config.who + (type == 0? "/applications" : "/users")
         , headers: {
             "PARAMS": params.source + "&sid=" + params.hash
         }
     });
 
-    rest.get(Config.who + (type == 0? "/applications" : "/users"), function(err, req, res, obj){
+    rest.get({}, function(err, req, res, obj){
 
         if(err){
             return cb({ok:0, err: err});

@@ -132,13 +132,14 @@ if(Cluster.isMaster){
     server.use(function auth(req, res, next){
 
         var token = req.header("auth");
+        token = token.substr(3);
         if(!token){
             logger.warn("[UnauthorizedError] " + JSON.stringify(req.headers));
             return next(new Restify.UnauthorizedError("authentication required"));
         }
 
         //获取用户信息
-        Auth.verify(req, Config.appId, Config.api, token, Config.token, function(err, user){
+        Auth.verify(req, Config.appId, Config.api, {auth: token}, Config.token, function(err, user){
             if(err){
                 logger.error(err.stack);
                 return next(err);
