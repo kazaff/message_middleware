@@ -31,7 +31,7 @@ module.exports = {
                 type: "multiprocess"
                 , mode: "master"
                 , loggerHost: this.host
-                , loggerPort: this.port + 1000
+                , loggerPort: 1081
                 , appender: {
                     type: "file"
                     , filename: "../logs/gate/logs.log"
@@ -49,7 +49,7 @@ module.exports = {
                 type: "multiprocess"
                 , mode: "worker"
                 , loggerHost: this.host
-                , loggerPort: this.port + 1000
+                , loggerPort: 1081
             }
         }]
     }
