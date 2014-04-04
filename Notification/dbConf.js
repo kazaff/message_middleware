@@ -7,6 +7,6 @@ module.exports = {
     host:"localhost"
     , port: "27017"
     , database: "messages"
-    , account: ""
-    , password: ""
+    , account: "root"
+    , password: "123456"
 };

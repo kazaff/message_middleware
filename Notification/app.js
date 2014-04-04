@@ -56,13 +56,20 @@ d.run(function(){
     //数据库连接
     var DbConf = require("./dbConf");
     var ODM = require("./model");
-    var options = {server: {socketOptions: {keepAlive: 1}}};
+    /*
+    //在windows2003 server下，该参数会导致无法连接mongod
+    var options = {
+        server: {socketOptions: {keepAlive: 1}}
+    };
+    */
+    var options = {};
     if(DbConf.account != ""){
         options.user = DbConf.account;
     }
     if(DbConf.password != ""){
         options.pass = DbConf.password;
     }
+
     ODM.db.connect("mongodb://" + DbConf.host + ":" + DbConf.port + "/" + DbConf.database, options);
     //连接数据库错误处理
     ODM.db.connection.on("error", function(err){
