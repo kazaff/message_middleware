@@ -31,6 +31,7 @@ if(Cluster.isMaster){
     var Auth = require("./auth");
     var Balancing = require("./balancing");
     var Domain = require("domain");
+    var _ = require("underscore");
 
     //设置跨域的自定义请求头
     Restify.CORS.ALLOW_HEADERS.push("auth");
@@ -105,6 +106,9 @@ if(Cluster.isMaster){
 
     //映射系统消息发送接口
     server.post("/message", function(req, res, next){
+        if(_.isUndefined(req.body)){
+            return next(new Restify.InvalidArgumentError());
+        }
 
         //获取消息服务器真实地址
         var api = Balancing.poll(Config.servers);

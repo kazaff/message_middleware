@@ -161,7 +161,6 @@ d.run(function(){
     app.post("/message", function sendMessage(req, res, next){
 
         //检查请求参数是否有效
-        //console.log(req.body);
         if( _.isUndefined(req.body.message)
             || _.str.trim(req.body.message) == ""
             || _.isUndefined(req.body.title)
